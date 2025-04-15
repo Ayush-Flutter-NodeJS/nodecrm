@@ -20,9 +20,9 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('❌ Database connection failed:', err);
+    console.error('Database connection failed:', err);
   } else {
-    console.log('✅ Connected to MySQL');
+    console.log('Connected to MySQL');
   }
 });
 
@@ -33,7 +33,7 @@ app.post('/login', (req, res) => {
   const query = 'SELECT * FROM App_users WHERE email = ?';
   db.query(query, [email], async (err, results) => {
     if (err) {
-      console.error('❌ Error fetching user:', err);
+      console.error('Error fetching user:', err);
       return res.status(500).json({ message: 'Server error' });
     }
 
@@ -42,7 +42,6 @@ app.post('/login', (req, res) => {
     }
 
     const user = results[0];
-
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
