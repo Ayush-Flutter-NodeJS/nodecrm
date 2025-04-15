@@ -1,7 +1,6 @@
 const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
-const bcrypt = require('bcryptjs'); // Using bcryptjs for compatibility
 const cors = require('cors');
 
 const app = express();
@@ -20,20 +19,20 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('Database connection failed:', err);
+    console.error(' Database connection failed:', err);
   } else {
-    console.log('Connected to MySQL');
+    console.log(' Connected to MySQL');
   }
 });
 
-// POST /login - Login user
+// POST /login - Login user with plain text password
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
 
   const query = 'SELECT * FROM App_users WHERE email = ?';
-  db.query(query, [email], async (err, results) => {
+  db.query(query, [email], (err, results) => {
     if (err) {
-      console.error('Error fetching user:', err);
+      console.error(' Error fetching user:', err);
       return res.status(500).json({ message: 'Server error' });
     }
 
@@ -42,12 +41,12 @@ app.post('/login', (req, res) => {
     }
 
     const user = results[0];
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
+
+    if (user.password !== password) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Successful login
+    //  Successful login
     res.status(200).json({
       message: 'Login successful',
       user: {
