@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 
 // MySQL Database Connection
 const db = mysql.createConnection({
-  host: 'localhost',
+  host: '195.35.47.198',
   user: 'u919956999_ifes_user',
   password: 'MRta0]M&F([]',
   database: 'u919956999_ifes_crm_db'
