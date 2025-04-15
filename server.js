@@ -1,7 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // Using bcryptjs for compatibility
 const cors = require('cors');
 
 const app = express();
@@ -10,7 +10,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Database connection
+// MySQL Database Connection
 const db = mysql.createConnection({
   host: '195.35.47.198',
   user: 'u919956999_ifes_user',
@@ -20,19 +20,20 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('Database connection failed:', err);
+    console.error('❌ Database connection failed:', err);
   } else {
-    console.log('Connected to MySQL');
+    console.log('✅ Connected to MySQL');
   }
 });
 
-// Login Route
+// POST /login - Login user
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
 
   const query = 'SELECT * FROM App_users WHERE email = ?';
   db.query(query, [email], async (err, results) => {
     if (err) {
+      console.error('❌ Error fetching user:', err);
       return res.status(500).json({ message: 'Server error' });
     }
 
@@ -67,7 +68,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Server start
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running at: http://localhost:${PORT}`);
 });
