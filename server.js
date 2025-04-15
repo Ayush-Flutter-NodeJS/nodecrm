@@ -25,6 +25,45 @@ db.connect((err) => {
   }
 });
 
+
+//  Fetch All Countries
+app.get("/countries", async (req, res) => {
+    try {
+      const fetchCountriesSQL = "SELECT * FROM bird_countries";
+      const [countries] = await db.query(fetchCountriesSQL);
+      res.json({ success: true, countries });
+    } catch (error) {
+      console.error("Fetch countries error:", error);
+      res.status(500).json({ success: false, message: "Error fetching countries" });
+    }
+  });
+  
+  //  Fetch States by Country ID
+  app.get("/states/:countryId", async (req, res) => {
+    try {
+      const { countryId } = req.params;
+      const fetchStatesSQL = "SELECT * FROM bird_states WHERE countryId = ?";
+      const [states] = await db.query(fetchStatesSQL, [countryId]);
+      res.json({ success: true, states });
+    } catch (error) {
+      console.error("Fetch states error:", error);
+      res.status(500).json({ success: false, message: "Error fetching states" });
+    }
+  });
+  
+  //  Fetch Cities by State ID
+  app.get("/cities/:stateId", async (req, res) => {
+    try {
+      const { stateId } = req.params;
+      const fetchCitiesSQL = "SELECT * FROM bird_cities WHERE state_id = ?";
+      const [cities] = await db.query(fetchCitiesSQL, [stateId]);
+      res.json({ success: true, cities });
+    } catch (error) {
+      console.error("Fetch cities error:", error);
+      res.status(500).json({ success: false, message: "Error fetching cities" });
+    }
+  });
+
 // POST /login - Login user with plain text password
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
