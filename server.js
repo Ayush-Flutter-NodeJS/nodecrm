@@ -71,7 +71,6 @@ app.post("/update-user-lead-details", (req, res) => {
     updated_phone
   } = req.body;
 
-  // Modify query to check for email in the WHERE clause
   const sql = `
     UPDATE users 
     SET 
@@ -89,7 +88,7 @@ app.post("/update-user-lead-details", (req, res) => {
       updated_company = ?, 
       updated_email = ?, 
       updated_phone = ? 
-    WHERE email = ?
+    WHERE id = ?
   `;
 
   const values = [
@@ -107,7 +106,7 @@ app.post("/update-user-lead-details", (req, res) => {
     updated_company,
     updated_email,
     updated_phone,
-    lead_email // Here we use the lead's email to identify which user to update
+    userId // ← Match based on user ID
   ];
 
   db.query(sql, values, (err, result) => {
@@ -115,9 +114,15 @@ app.post("/update-user-lead-details", (req, res) => {
       console.error("DB update error:", err);
       return res.status(500).send("Error updating user lead details");
     }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send("No matching user found to update");
+    }
+
     res.send("Lead details updated in users table");
   });
 });
+
 
 
 
