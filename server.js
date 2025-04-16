@@ -67,6 +67,22 @@ app.post("/assign-leads", (req, res) => {
   });
 });
 
+app.post("/assign-leads", (req, res) => {
+  const { leadIds, userId } = req.body;
+  const now = new Date();
+
+  if (!Array.isArray(leadIds) || typeof userId !== "number") {
+    return res.status(400).send("Invalid request. Please check the input.");
+  }
+
+  const sql = "UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (?)";
+  db.query(sql, [userId, now, leadIds], (err, result) => {
+    if (err) return res.status(500).send("Failed to assign leads");
+    res.send("Leads assigned successfully");
+  });
+});
+
+
 // Get all salespersons (users with role 'sales')
 app.get("/salespersons", (req, res) => {
   db.query("SELECT id, name FROM users WHERE role = 'sales'", (err, result) => {
