@@ -55,18 +55,22 @@ app.get("/leads/assigned/:userId", (req, res) => {
 // Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
-  const now = new Date(); // <-- Add current date
 
   if (!Array.isArray(leadIds) || typeof userId !== "number") {
     return res.status(400).send("Invalid request. Please check the input.");
   }
 
+  // Get current IST time and format for MySQL (YYYY-MM-DD HH:mm:ss)
+  const istNow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+  const formattedDate = new Date(istNow).toISOString().slice(0, 19).replace("T", " ");
+
   const sql = "UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (?)";
-  db.query(sql, [userId, now, leadIds], (err, result) => {
+  db.query(sql, [userId, formattedDate, leadIds], (err, result) => {
     if (err) return res.status(500).send("Failed to assign leads");
     res.send("Leads assigned successfully");
   });
 });
+
 
 
 // app.post("/assign-leads", (req, res) => {
