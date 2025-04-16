@@ -52,6 +52,77 @@ app.get("/leads/assigned/:userId", (req, res) => {
   });
 });
 
+app.post("/update-user-lead-details", (req, res) => {
+  const {
+    userId,
+    lead_name,
+    lead_email,
+    lead_company,
+    lead_phone,
+    lead_designation,
+    assigned_at,
+    lead_status,
+    remarks,
+    follow_up_date,
+    follow_up_time,
+    updated_name,
+    updated_company,
+    updated_email,
+    updated_phone
+  } = req.body;
+
+  // Modify query to check for email in the WHERE clause
+  const sql = `
+    UPDATE users 
+    SET 
+      lead_name = ?, 
+      lead_email = ?, 
+      lead_company = ?, 
+      lead_phone = ?, 
+      lead_designation = ?, 
+      assigned_at = ?, 
+      lead_status = ?, 
+      remarks = ?, 
+      follow_up_date = ?, 
+      follow_up_time = ?, 
+      updated_name = ?, 
+      updated_company = ?, 
+      updated_email = ?, 
+      updated_phone = ? 
+    WHERE email = ?
+  `;
+
+  const values = [
+    lead_name,
+    lead_email,
+    lead_company,
+    lead_phone,
+    lead_designation,
+    assigned_at,
+    lead_status,
+    remarks,
+    follow_up_date,
+    follow_up_time,
+    updated_name,
+    updated_company,
+    updated_email,
+    updated_phone,
+    lead_email // Here we use the lead's email to identify which user to update
+  ];
+
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      console.error("DB update error:", err);
+      return res.status(500).send("Error updating user lead details");
+    }
+    res.send("Lead details updated in users table");
+  });
+});
+
+
+
+
+
 // Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
