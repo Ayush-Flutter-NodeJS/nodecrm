@@ -43,22 +43,23 @@ app.get("/leads", (req, res) => {
   });
 });
 
-// Get leads assigned to a specific user
-app.get("/leads/:userId", (req, res) => {
+// Get leads assigned to a specific salesperson (or user)
+app.get("/leads/assigned/:userId", (req, res) => {
   const userId = req.params.userId;
   db.query("SELECT * FROM leads WHERE assigned_to = ?", [userId], (err, result) => {
-    if (err) return res.status(500).send("Error fetching user leads");
+    if (err) return res.status(500).send("Error fetching assigned leads");
     res.json(result);
   });
 });
 
-// Assign multiple leads to a user
+// Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
   if (!Array.isArray(leadIds) || typeof userId !== "number") {
-    return res.status(400).send("Invalid request");
+    return res.status(400).send("Invalid request. Please check the input.");
   }
 
+  // Update leads to be assigned to the given userId (salesperson)
   const sql = "UPDATE leads SET assigned_to = ? WHERE id IN (?)";
   db.query(sql, [userId, leadIds], (err, result) => {
     if (err) return res.status(500).send("Failed to assign leads");
@@ -66,7 +67,7 @@ app.post("/assign-leads", (req, res) => {
   });
 });
 
-// Get all salespersons
+// Get all salespersons (users with role 'sales')
 app.get("/salespersons", (req, res) => {
   db.query("SELECT id, name FROM users WHERE role = 'sales'", (err, result) => {
     if (err) return res.status(500).send("Error fetching salespersons");
