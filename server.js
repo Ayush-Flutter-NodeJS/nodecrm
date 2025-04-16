@@ -1,15 +1,12 @@
-const express = require('express');
-const mysql = require('mysql2');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql");
+const bodyParser = require("body-parser");
 
 const app = express();
-const PORT = 3000;
-
 app.use(cors());
 app.use(bodyParser.json());
 
-// MySQL Database Connection
 const db = mysql.createConnection({
   host: '195.35.47.198',
   user: 'u919956999_ifes_user',
@@ -17,95 +14,67 @@ const db = mysql.createConnection({
   database: 'u919956999_ifes_crm_db'
 });
 
-db.connect((err) => {
+db.connect(err => {
   if (err) {
-    console.error(' Database connection failed:', err);
+    console.error("DB connection error:", err);
   } else {
-    console.log(' Connected to MySQL');
+    console.log("MySQL Connected");
   }
 });
 
+// ========== ROUTES ==========
 
-//  Fetch All Countries
-app.get("/countries", async (req, res) => {
-    try {
-      const fetchCountriesSQL = "SELECT * FROM bird_countries";
-      const [countries] = await db.query(fetchCountriesSQL);
-      res.json({ success: true, countries });
-    } catch (error) {
-      console.error("Fetch countries error:", error);
-      res.status(500).json({ success: false, message: "Error fetching countries" });
-    }
-  });
-  
-  //  Fetch States by Country ID
-  app.get("/states/:countryId", async (req, res) => {
-    try {
-      const { countryId } = req.params;
-      const fetchStatesSQL = "SELECT * FROM bird_states WHERE countryId = ?";
-      const [states] = await db.query(fetchStatesSQL, [countryId]);
-      res.json({ success: true, states });
-    } catch (error) {
-      console.error("Fetch states error:", error);
-      res.status(500).json({ success: false, message: "Error fetching states" });
-    }
-  });
-  
-  //  Fetch Cities by State ID
-  app.get("/cities/:stateId", async (req, res) => {
-    try {
-      const { stateId } = req.params;
-      const fetchCitiesSQL = "SELECT * FROM bird_cities WHERE state_id = ?";
-      const [cities] = await db.query(fetchCitiesSQL, [stateId]);
-      res.json({ success: true, cities });
-    } catch (error) {
-      console.error("Fetch cities error:", error);
-      res.status(500).json({ success: false, message: "Error fetching cities" });
-    }
-  });
-
-// POST /login - Login user with plain text password
-app.post('/login', (req, res) => {
+// Login
+app.post("/login", (req, res) => {
   const { email, password } = req.body;
+  const sql = "SELECT id, name, role FROM users WHERE email = ? AND password = ?";
+  db.query(sql, [email, password], (err, result) => {
+    if (err) return res.status(500).send("Server error");
+    if (result.length === 0) return res.status(401).send("Invalid credentials");
+    res.json(result[0]);
+  });
+});
 
-  const query = 'SELECT * FROM App_users WHERE email = ?';
-  db.query(query, [email], (err, results) => {
-    if (err) {
-      console.error(' Error fetching user:', err);
-      return res.status(500).json({ message: 'Server error' });
-    }
+// Get all leads (Admin)
+app.get("/leads", (req, res) => {
+  db.query("SELECT * FROM leads", (err, result) => {
+    if (err) return res.status(500).send("Error fetching leads");
+    res.json(result);
+  });
+});
 
-    if (results.length === 0) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+// Get leads assigned to a specific user
+app.get("/leads/:userId", (req, res) => {
+  const userId = req.params.userId;
+  db.query("SELECT * FROM leads WHERE assigned_to = ?", [userId], (err, result) => {
+    if (err) return res.status(500).send("Error fetching user leads");
+    res.json(result);
+  });
+});
 
-    const user = results[0];
+// Assign multiple leads to a user
+app.post("/assign-leads", (req, res) => {
+  const { leadIds, userId } = req.body;
+  if (!Array.isArray(leadIds) || typeof userId !== "number") {
+    return res.status(400).send("Invalid request");
+  }
 
-    if (user.password !== password) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+  const sql = "UPDATE leads SET assigned_to = ? WHERE id IN (?)";
+  db.query(sql, [userId, leadIds], (err, result) => {
+    if (err) return res.status(500).send("Failed to assign leads");
+    res.send("Leads assigned successfully");
+  });
+});
 
-    //  Successful login
-    res.status(200).json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        mobile: user.mobile,
-        company: user.company,
-        designation: user.designation,
-        users: user.users,
-        clock_in: user.clock_in,
-        clock_out: user.clock_out,
-        current_location: user.current_location,
-        remarks: user.remarks,
-        total_count: user.total_count,
-      }
-    });
+// Get all salespersons
+app.get("/salespersons", (req, res) => {
+  db.query("SELECT id, name FROM users WHERE role = 'sales'", (err, result) => {
+    if (err) return res.status(500).send("Error fetching salespersons");
+    res.json(result);
   });
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at: http://localhost:${PORT}`);
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
