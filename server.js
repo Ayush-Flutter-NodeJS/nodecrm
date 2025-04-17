@@ -125,9 +125,8 @@ app.post("/update-user-lead-details", (req, res) => {
 
 
 //get users details on the basics odf status
-
-app.get("/get-users-by-status/:status", (req, res) => {
-  const status = req.params.status;
+app.get("/get-users-by-status", (req, res) => {
+  const status = req.query.status;
 
   const sql = `
     SELECT 
@@ -157,6 +156,7 @@ app.get("/get-users-by-status/:status", (req, res) => {
     res.json(results);
   });
 });
+
 
 
 
