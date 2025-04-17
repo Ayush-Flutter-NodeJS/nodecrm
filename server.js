@@ -202,15 +202,11 @@ app.post("/assign-leads", (req, res) => {
   });
 });
 
-app.get("/assigned-leads/:userId", (req, res) => {
-  const userId = parseInt(req.params.userId);
-  
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
+app.get("/assigned-leads/:email", (req, res) => {
+  const email = req.params.email;
 
-  const sql = "SELECT * FROM leads WHERE assigned_to = ?";
-  db.query(sql, [userId], (err, results) => {
+  const sql = "SELECT * FROM leads WHERE assigned_to_email = ?";
+  db.query(sql, [email], (err, results) => {
     if (err) {
       console.error("Database error:", err);
       return res.status(500).json({ error: "Database error" });
@@ -218,6 +214,7 @@ app.get("/assigned-leads/:userId", (req, res) => {
     res.json(results);
   });
 });
+
 
 
 // app.post("/assign-leads", (req, res) => {
