@@ -205,7 +205,7 @@ app.post("/assign-leads", (req, res) => {
 app.get("/assigned-leads/:email", (req, res) => {
   const email = req.params.email;
 
-  const sql = "SELECT * FROM leads WHERE assigned_to_email = ?";
+  const sql = "SELECT * FROM leads WHERE email = ?";
   db.query(sql, [email], (err, results) => {
     if (err) {
       console.error("Database error:", err);
