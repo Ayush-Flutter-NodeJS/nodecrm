@@ -124,6 +124,43 @@ app.post("/update-user-lead-details", (req, res) => {
 });
 
 
+//get users details on the basics odf status
+
+app.get("/get-users-by-status/:status", (req, res) => {
+  const status = req.params.status;
+
+  const sql = `
+    SELECT 
+      id,
+      lead_name,
+      lead_email,
+      lead_company,
+      lead_phone,
+      lead_designation,
+      assigned_at,
+      follow_up_date,
+      follow_up_time,
+      updated_name,
+      updated_company,
+      updated_email,
+      updated_phone
+    FROM users
+    WHERE lead_status = ?
+  `;
+
+  db.query(sql, [status], (err, results) => {
+    if (err) {
+      console.error("Error fetching users by status:", err);
+      return res.status(500).send("Server error while fetching users");
+    }
+
+    res.json(results);
+  });
+});
+
+
+
+
 
 
 
