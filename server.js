@@ -202,7 +202,6 @@ app.post("/assign-leads", (req, res) => {
   });
 });
 
-// Add this endpoint to your backend
 app.get("/assigned-leads/:userId", (req, res) => {
   const userId = parseInt(req.params.userId);
   
@@ -210,7 +209,7 @@ app.get("/assigned-leads/:userId", (req, res) => {
     return res.status(400).json({ error: "Invalid user ID" });
   }
 
-  const sql = "SELECT * FROM leads WHERE assigned_to = ? ORDER BY assigned_at DESC";
+  const sql = "SELECT * FROM leads WHERE assigned_to = ?";
   db.query(sql, [userId], (err, results) => {
     if (err) {
       console.error("Database error:", err);
