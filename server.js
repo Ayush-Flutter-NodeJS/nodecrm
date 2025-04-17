@@ -169,21 +169,38 @@ app.get("/get-users-by-status", (req, res) => {
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
 
-  if (!Array.isArray(leadIds) || typeof userId !== "number") {
-    return res.status(400).send("Invalid request. Please check the input.");
+  // Validate input
+  if (!Array.isArray(leadIds) || leadIds.length === 0 || typeof userId !== "number") {
+    return res.status(400).json({ error: "Invalid request. Please provide leadIds array and userId." });
   }
 
-  // Get current IST time and format for MySQL (YYYY-MM-DD HH:mm:ss)
   const istNow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
   const formattedDate = new Date(istNow).toISOString().slice(0, 19).replace("T", " ");
 
-  const sql = "UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (?)";
-  db.query(sql, [userId, formattedDate, leadIds], (err, result) => {
-    if (err) return res.status(500).send("Failed to assign leads");
-    res.send("Leads assigned successfully");
+  // Create placeholders for each lead ID
+  const placeholders = leadIds.map(() => '?').join(',');
+  const sql = `UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (${placeholders})`;
+  
+  // Combine parameters - userId and formattedDate first, then spread leadIds
+  const params = [userId, formattedDate, ...leadIds];
+
+  db.query(sql, params, (err, result) => {
+    if (err) {
+      console.error("Error assigning leads:", err);
+      return res.status(500).json({ error: "Failed to assign leads" });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "No matching leads found" });
+    }
+    
+    res.json({ 
+      success: true,
+      message: `${result.affectedRows} leads assigned successfully`,
+      affectedRows: result.affectedRows
+    });
   });
 });
-
 
 
 // app.post("/assign-leads", (req, res) => {
