@@ -166,9 +166,9 @@ app.post("/mark-attendance", (req, res) => {
       if (result.length === 0) return res.status(400).json({ message: "Clock-in not found for today" });
 
       const clockInTime = new Date(`${date}T${result[0].clock_in}`);
-      const istClockInTime = new Date(clockInTime.getTime() + istOffset);
+      const clockOutTime = now;
 
-      const hoursWorked = (istDate - istClockInTime) / (1000 * 60 * 60);
+      const hoursWorked = (clockOutTime - clockInTime) / (1000 * 60 * 60); // hours
 
       // Full Day logic
       const graceIn = new Date(`${date}T09:45:00`);
