@@ -130,8 +130,11 @@ app.post("/mark-attendance", (req, res) => {
   const { name, email, type } = req.body;
 
   const now = new Date();
-  const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
-  const time = now.toTimeString().split(" ")[0]; // HH:MM:SS
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+  const istDateObj = new Date(now.getTime() + istOffset);
+
+  const date = istDateObj.toISOString().split("T")[0]; // YYYY-MM-DD
+  const time = istDateObj.toTimeString().split(" ")[0];
 
   if (type === "clockin") {
     // Check if already clocked in
