@@ -124,6 +124,110 @@ app.post("/update-user-lead-details", (req, res) => {
 });
 
 
+//attendece record....
+
+app.post("/mark-attendance", (req, res) => {
+  const { name, email, type } = req.body;
+
+  const now = new Date();
+  const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  const time = now.toTimeString().split(" ")[0]; // HH:MM:SS
+
+  if (type === "clockin") {
+    // Check if already clocked in
+    const checkSql = `SELECT * FROM attendance WHERE email = ? AND date = ?`;
+
+    db.query(checkSql, [email, date], (err, result) => {
+      if (err) return res.status(500).send("Error checking clock-in");
+      if (result.length > 0) return res.status(400).json({ message: "Already clocked in today" });
+
+      // Insert new record with clock_in
+      const insertSql = `
+        INSERT INTO attendance (name, email, date, clock_in)
+        VALUES (?, ?, ?, ?)
+      `;
+
+      db.query(insertSql, [name, email, date, time], (err2) => {
+        if (err2) return res.status(500).send("Error saving clock-in");
+        res.json({ message: "Clock-in successful", time });
+      });
+    });
+  }
+
+  else if (type === "clockout") {
+    // Fetch today's record to calculate working hours
+    const getSql = `SELECT * FROM attendance WHERE email = ? AND date = ?`;
+
+    db.query(getSql, [email, date], (err, result) => {
+      if (err) return res.status(500).send("Error checking clock-out");
+      if (result.length === 0) return res.status(400).json({ message: "Clock-in not found for today" });
+
+      const clockInTime = new Date(`${date}T${result[0].clock_in}`);
+      const clockOutTime = now;
+
+      const hoursWorked = (clockOutTime - clockInTime) / (1000 * 60 * 60); // hours
+
+      // Full Day logic
+      const graceIn = new Date(`${date}T09:45:00`);
+      const fullOut = new Date(`${date}T18:30:00`);
+
+      let status = "Half Day";
+      if (clockInTime <= graceIn && clockOutTime >= fullOut && hoursWorked >= 9) {
+        status = "Full Day";
+      }
+
+      // Update record
+      const updateSql = `
+        UPDATE attendance
+        SET clock_out = ?, working_hours = ?, status = ?
+        WHERE email = ? AND date = ?
+      `;
+
+      db.query(updateSql, [time, hoursWorked.toFixed(2), status, email, date], (err2) => {
+        if (err2) return res.status(500).send("Error saving clock-out");
+        res.json({ message: "Clock-out successful", status, working_hours: hoursWorked.toFixed(2), time });
+      });
+    });
+  }
+
+  else {
+    res.status(400).json({ message: "Invalid type. Use 'clockin' or 'clockout'" });
+  }
+});
+
+
+///get the attendece total days full day and half days...
+
+app.get("/get-attendance", (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const sql = `SELECT date, clock_in, clock_out, status, working_hours FROM attendance WHERE email = ? ORDER BY date DESC`;
+
+  db.query(sql, [email], (err, results) => {
+    if (err) {
+      console.error("Error fetching attendance:", err);
+      return res.status(500).send("Error fetching attendance");
+    }
+
+    const fullDays = results.filter(r => r.status === "Full Day").length;
+    const halfDays = results.filter(r => r.status === "Half Day").length;
+
+    res.json({
+      attendance: results,
+      summary: {
+        totalDays: results.length,
+        fullDays,
+        halfDays
+      }
+    });
+  });
+});
+
+
 //get users details on the basics odf status
 app.get("/get-users-by-status", (req, res) => {
   const status = req.query.status;
