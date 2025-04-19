@@ -127,7 +127,7 @@ app.post("/update-user-lead-details", (req, res) => {
 //attendece record....
 
 app.post("/mark-attendance", (req, res) => {
-  const { name, email, type } = req.body;
+  const { name, email, type, location_url } = req.body;
 
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
@@ -142,65 +142,75 @@ app.post("/mark-attendance", (req, res) => {
 
     db.query(checkSql, [email, date], (err, result) => {
       if (err) return res.status(500).send("Error checking clock-in");
-      if (result.length > 0) return res.status(400).json({ message: "Already clocked in today" });
+      if (result.length > 0)
+        return res.status(400).json({ message: "Already clocked in today" });
 
-      // Insert new record with clock_in
+      // Insert new record with clock_in and clockin_location
       const insertSql = `
-        INSERT INTO attendance (name, email, date, clock_in)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO attendance (name, email, date, clock_in, clockin_location)
+        VALUES (?, ?, ?, ?, ?)
       `;
 
-      db.query(insertSql, [name, email, date, time], (err2) => {
+      db.query(insertSql, [name, email, date, time, location_url], (err2) => {
         if (err2) return res.status(500).send("Error saving clock-in");
         res.json({ message: "Clock-in successful", time });
       });
     });
-  }
-
-  else if (type === "clockout") {
+  } else if (type === "clockout") {
     const getSql = `SELECT * FROM attendance WHERE email = ? AND date = ?`;
 
     db.query(getSql, [email, date], (err, result) => {
       if (err) return res.status(500).send("Error checking clock-out");
-      if (result.length === 0) return res.status(400).json({ message: "Clock-in not found for today" });
+      if (result.length === 0)
+        return res
+          .status(400)
+          .json({ message: "Clock-in not found for today" });
 
-      // Parse times in IST
       const clockInTime = new Date(`${date}T${result[0].clock_in}`);
-      const clockOutTime = new Date(now.getTime() + istOffset); // Corrected
+      const clockOutTime = new Date(now.getTime() + istOffset);
 
       const hoursWorked = (clockOutTime - clockInTime) / (1000 * 60 * 60); // in hours
 
-      // Full Day logic based on IST
+      // Full Day logic
       const graceIn = new Date(`${date}T09:45:00`);
       const fullOut = new Date(`${date}T18:30:00`);
 
       let status = "Half Day";
-      if (clockInTime <= graceIn && clockOutTime >= fullOut && hoursWorked >= 9) {
+      if (
+        clockInTime <= graceIn &&
+        clockOutTime >= fullOut &&
+        hoursWorked >= 9
+      ) {
         status = "Full Day";
       }
 
       const updateSql = `
         UPDATE attendance
-        SET clock_out = ?, working_hours = ?, status = ?
+        SET clock_out = ?, working_hours = ?, status = ?, clockout_location = ?
         WHERE email = ? AND date = ?
       `;
 
-      db.query(updateSql, [time, hoursWorked.toFixed(2), status, email, date], (err2) => {
-        if (err2) return res.status(500).send("Error saving clock-out");
-        res.json({
-          message: "Clock-out successful",
-          status,
-          working_hours: hoursWorked.toFixed(2),
-          time,
-        });
-      });
+      db.query(
+        updateSql,
+        [time, hoursWorked.toFixed(2), status, location_url, email, date],
+        (err2) => {
+          if (err2) return res.status(500).send("Error saving clock-out");
+          res.json({
+            message: "Clock-out successful",
+            status,
+            working_hours: hoursWorked.toFixed(2),
+            time,
+          });
+        }
+      );
     });
-  }
-
-  else {
-    res.status(400).json({ message: "Invalid type. Use 'clockin' or 'clockout'" });
+  } else {
+    res
+      .status(400)
+      .json({ message: "Invalid type. Use 'clockin' or 'clockout'" });
   }
 });
+
 
 
 ///get the attendece total days full day and half days...
