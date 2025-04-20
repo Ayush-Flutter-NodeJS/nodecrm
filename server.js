@@ -245,6 +245,44 @@ app.get("/get-attendance", (req, res) => {
 });
 
 
+
+////
+
+
+// Get today's attendance details (clock-in and clock-out only) for a specific user
+app.get("/get-todays-attendance", (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+  const istDateObj = new Date(now.getTime() + istOffset);
+  const date = istDateObj.toISOString().split("T")[0]; // YYYY-MM-DD
+
+  const sql = `SELECT date, clock_in, clock_out FROM attendance WHERE email = ? AND date = ?`;
+
+  db.query(sql, [email, date], (err, results) => {
+    if (err) {
+      console.error("Error fetching today's attendance:", err);
+      return res.status(500).send("Error fetching today's attendance");
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "No attendance record found for today" });
+    }
+
+    res.json({
+      attendance: results[0],  // Only return today's clock-in and clock-out times
+    });
+  });
+});
+
+
+
+
 //get users details on the basics odf status
 app.get("/get-users-by-status", (req, res) => {
   const status = req.query.status;
