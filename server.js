@@ -2,19 +2,20 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql");
 const bodyParser = require("body-parser");
+const mysql = require("mysql2/promise"); 
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
 const db = mysql.createConnection({
-  host: '195.35.47.198',
-  user: 'u919956999_ifes_user',
-  password: 'MRta0]M&F([]',
-  database: 'u919956999_ifes_crm_db'
+  host: "195.35.47.198",
+  user: "u919956999_ifes_user",
+  password: "MRta0]M&F([]",
+  database: "u919956999_ifes_crm_db",
 });
 
-db.connect(err => {
+db.connect((err) => {
   if (err) {
     console.error("DB connection error:", err);
   } else {
@@ -25,7 +26,8 @@ db.connect(err => {
 // Login
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const sql = "SELECT id, name, role FROM users WHERE email = ? AND password = ?";
+  const sql =
+    "SELECT id, name, role FROM users WHERE email = ? AND password = ?";
   db.query(sql, [email, password], (err, result) => {
     if (err) return res.status(500).send("Server error");
     if (result.length === 0) return res.status(401).send("Invalid credentials");
@@ -44,10 +46,14 @@ app.get("/leads", (req, res) => {
 // Get leads assigned to a specific salesperson (or user)
 app.get("/leads/assigned/:userId", (req, res) => {
   const userId = req.params.userId;
-  db.query("SELECT * FROM leads WHERE assigned_to = ?", [userId], (err, result) => {
-    if (err) return res.status(500).send("Error fetching assigned leads");
-    res.json(result);
-  });
+  db.query(
+    "SELECT * FROM leads WHERE assigned_to = ?",
+    [userId],
+    (err, result) => {
+      if (err) return res.status(500).send("Error fetching assigned leads");
+      res.json(result);
+    }
+  );
 });
 
 app.post("/update-user-lead-details", (req, res) => {
@@ -66,7 +72,7 @@ app.post("/update-user-lead-details", (req, res) => {
     updated_name,
     updated_company,
     updated_email,
-    updated_phone
+    updated_phone,
   } = req.body;
 
   const sql = `
@@ -104,7 +110,7 @@ app.post("/update-user-lead-details", (req, res) => {
     updated_company,
     updated_email,
     updated_phone,
-    userId // ← Match based on user ID
+    userId, // ← Match based on user ID
   ];
 
   db.query(sql, values, (err, result) => {
@@ -120,7 +126,6 @@ app.post("/update-user-lead-details", (req, res) => {
     res.send("Lead details updated in users table");
   });
 });
-
 
 //attendece record....
 
@@ -209,8 +214,6 @@ app.post("/mark-attendance", (req, res) => {
   }
 });
 
-
-
 ///get the attendece total days full day and half days...
 
 app.get("/get-attendance", (req, res) => {
@@ -228,22 +231,19 @@ app.get("/get-attendance", (req, res) => {
       return res.status(500).send("Error fetching attendance");
     }
 
-    const fullDays = results.filter(r => r.status === "Full Day").length;
-    const halfDays = results.filter(r => r.status === "Half Day").length;
+    const fullDays = results.filter((r) => r.status === "Full Day").length;
+    const halfDays = results.filter((r) => r.status === "Half Day").length;
 
     res.json({
       attendance: results,
       summary: {
         totalDays: results.length,
         fullDays,
-        halfDays
-      }
+        halfDays,
+      },
     });
   });
 });
-
-
-
 
 // Get today's attendance details (clock-in and clock-out only) for a specific user
 app.get("/get-todays-attendance", (req, res) => {
@@ -267,16 +267,16 @@ app.get("/get-todays-attendance", (req, res) => {
     }
 
     if (results.length === 0) {
-      return res.status(404).json({ message: "No attendance record found for today" });
+      return res
+        .status(404)
+        .json({ message: "No attendance record found for today" });
     }
 
     res.json({
-      attendance: results[0],  // Only return today's clock-in and clock-out times
+      attendance: results[0], // Only return today's clock-in and clock-out times
     });
   });
 });
-
-
 
 app.get("/countries", async (req, res) => {
   try {
@@ -320,7 +320,6 @@ app.get("/cities/:stateId", async (req, res) => {
   }
 });
 
-
 // POST API for lead creation
 app.post("/create-lead", async (req, res) => {
   try {
@@ -334,14 +333,21 @@ app.post("/create-lead", async (req, res) => {
       country_id,
       state_id,
       city_id,
-      status = 'new' 
+      status = "new",
     } = req.body;
 
     // Validate required fields
-    if (!name || !email || !phone || !company_name || !designation || !company_services) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Missing required fields" 
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !company_name ||
+      !designation ||
+      !company_services
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
       });
     }
 
@@ -361,35 +367,35 @@ app.post("/create-lead", async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
-    const [result] = await db.promise().query(sql, [
-      name,
-      email,
-      phone,
-      company_name,
-      designation,
-      company_services,
-      country_id,
-      state_id,
-      city_id,
-      status
-    ]);
+    const [result] = await db
+      .promise()
+      .query(sql, [
+        name,
+        email,
+        phone,
+        company_name,
+        designation,
+        company_services,
+        country_id,
+        state_id,
+        city_id,
+        status,
+      ]);
 
     res.json({
       success: true,
       message: "Lead created successfully",
-      leadId: result.insertId
+      leadId: result.insertId,
     });
-
   } catch (error) {
     console.error("Create lead error:", error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: "Error creating lead",
-      error: error.message // Optional: include error details
+      error: error.message, // Optional: include error details
     });
   }
 });
-
 
 //get users details on the basics odf status
 app.get("/get-users-by-status", (req, res) => {
@@ -424,30 +430,35 @@ app.get("/get-users-by-status", (req, res) => {
   });
 });
 
-
-
-
-
-
-
-
-
 // Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
 
   // Validate input
-  if (!Array.isArray(leadIds) || leadIds.length === 0 || typeof userId !== "number") {
-    return res.status(400).json({ error: "Invalid request. Please provide leadIds array and userId." });
+  if (
+    !Array.isArray(leadIds) ||
+    leadIds.length === 0 ||
+    typeof userId !== "number"
+  ) {
+    return res
+      .status(400)
+      .json({
+        error: "Invalid request. Please provide leadIds array and userId.",
+      });
   }
 
-  const istNow = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-  const formattedDate = new Date(istNow).toISOString().slice(0, 19).replace("T", " ");
+  const istNow = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Kolkata",
+  });
+  const formattedDate = new Date(istNow)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
 
   // Create placeholders for each lead ID
-  const placeholders = leadIds.map(() => '?').join(',');
+  const placeholders = leadIds.map(() => "?").join(",");
   const sql = `UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (${placeholders})`;
-  
+
   // Combine parameters - userId and formattedDate first, then spread leadIds
   const params = [userId, formattedDate, ...leadIds];
 
@@ -456,22 +467,22 @@ app.post("/assign-leads", (req, res) => {
       console.error("Error assigning leads:", err);
       return res.status(500).json({ error: "Failed to assign leads" });
     }
-    
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "No matching leads found" });
     }
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: `${result.affectedRows} leads assigned successfully`,
-      affectedRows: result.affectedRows
+      affectedRows: result.affectedRows,
     });
   });
 });
 
 app.get("/assigned-leads/:userId", (req, res) => {
   const userId = parseInt(req.params.userId);
-  
+
   if (isNaN(userId)) {
     return res.status(400).json({ error: "Invalid user ID" });
   }
@@ -485,7 +496,6 @@ app.get("/assigned-leads/:userId", (req, res) => {
     res.json(results);
   });
 });
-
 
 // app.post("/assign-leads", (req, res) => {
 //   const { leadIds, userId } = req.body;
@@ -501,7 +511,6 @@ app.get("/assigned-leads/:userId", (req, res) => {
 //     res.send("Leads assigned successfully");
 //   });
 // });
-
 
 // Get all salespersons (users with role 'sales')
 app.get("/salespersons", (req, res) => {
