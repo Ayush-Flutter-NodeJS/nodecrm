@@ -430,6 +430,54 @@ app.get("/get-users-by-status", (req, res) => {
   });
 });
 
+
+
+// GET user name by email
+app.get("/get-user-by-email", async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email parameter is required" 
+      });
+    }
+
+    const sql = "SELECT name FROM users WHERE email = ?";
+    
+    db.query(sql, [email], (err, result) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Database error" 
+        });
+      }
+      
+      if (result.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "User not found" 
+        });
+      }
+      
+      res.json({
+        success: true,
+        name: result[0].name
+      });
+    });
+
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error" 
+    });
+  }
+});
+
+
 // Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
   const { leadIds, userId } = req.body;
