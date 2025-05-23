@@ -321,6 +321,76 @@ app.get("/cities/:stateId", async (req, res) => {
 });
 
 
+// POST API for lead creation
+app.post("/create-lead", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      company_name,
+      designation,
+      company_services,
+      country_id,
+      state_id,
+      city_id,
+      status = 'new' 
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !company_name || !designation || !company_services) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields" 
+      });
+    }
+
+    const sql = `
+      INSERT INTO leads (
+        name, 
+        email, 
+        phone, 
+        company, 
+        designation, 
+        company_services, 
+        country, 
+        state, 
+        city, 
+        status,
+        lead_creation_date
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `;
+
+    const [result] = await db.promise().query(sql, [
+      name,
+      email,
+      phone,
+      company_name,
+      designation,
+      company_services,
+      country_id,
+      state_id,
+      city_id,
+      status
+    ]);
+
+    res.json({
+      success: true,
+      message: "Lead created successfully",
+      leadId: result.insertId
+    });
+
+  } catch (error) {
+    console.error("Create lead error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error creating lead",
+      error: error.message // Optional: include error details
+    });
+  }
+});
+
+
 //get users details on the basics odf status
 app.get("/get-users-by-status", (req, res) => {
   const status = req.query.status;
