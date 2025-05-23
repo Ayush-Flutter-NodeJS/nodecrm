@@ -22,8 +22,6 @@ db.connect(err => {
   }
 });
 
-// ========== ROUTES ==========
-
 // Login
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
@@ -246,8 +244,6 @@ app.get("/get-attendance", (req, res) => {
 
 
 
-////
-
 
 // Get today's attendance details (clock-in and clock-out only) for a specific user
 app.get("/get-todays-attendance", (req, res) => {
@@ -281,6 +277,48 @@ app.get("/get-todays-attendance", (req, res) => {
 });
 
 
+
+app.get("/countries", async (req, res) => {
+  try {
+    const [countries] = await db
+      .promise()
+      .query("SELECT * FROM bird_countries");
+    res.json({ success: true, countries });
+  } catch (error) {
+    console.error("Fetch countries error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching countries" });
+  }
+});
+
+// Fetch States by Country ID
+app.get("/states/:countryId", async (req, res) => {
+  try {
+    const { countryId } = req.params;
+    const [states] = await db
+      .promise()
+      .query("SELECT * FROM bird_states WHERE countryId = ?", [countryId]);
+    res.json({ success: true, states });
+  } catch (error) {
+    console.error("Fetch states error:", error);
+    res.status(500).json({ success: false, message: "Error fetching states" });
+  }
+});
+
+// Fetch Cities by State ID
+app.get("/cities/:stateId", async (req, res) => {
+  try {
+    const { stateId } = req.params;
+    const [cities] = await db
+      .promise()
+      .query("SELECT * FROM bird_cities WHERE state_id = ?", [stateId]);
+    res.json({ success: true, cities });
+  } catch (error) {
+    console.error("Fetch cities error:", error);
+    res.status(500).json({ success: false, message: "Error fetching cities" });
+  }
+});
 
 
 //get users details on the basics odf status
