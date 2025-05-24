@@ -61,65 +61,68 @@ app.get("/leads/assigned/:userId", (req, res) => {
   );
 });
 
-async function fetchLeads() {
+async function fetchAllLeads() {
   try {
-    // First get the lead forms for the page
-    const formsResponse = await axios.get(
-      `https://graph.facebook.com/v19.0/${formId}/leadgen_forms?access_token=${accessToken}`
+    // 1. Get all lead forms
+    const formsRes = await axios.get(
+      `https://graph.facebook.com/v19.0/${pageId}/leadgen_forms?access_token=${accessToken}`
     );
 
-    // Check if forms exist
-    if (!formsResponse.data.data || !Array.isArray(formsResponse.data.data)) {
-      console.log("No lead forms found for this page");
+    if (!formsRes.data.data?.length) {
+      console.log("No lead forms found");
       return;
     }
 
-    // Process each form's leads
-    for (const form of formsResponse.data.data) {
-      try {
-        const leadsResponse = await axios.get(
-          `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`
-        );
+    // 2. Process each form
+    for (const form of formsRes.data.data) {
+      let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
+      let leadCount = 0;
 
-        // Check if leads exist
-        if (!leadsResponse.data.data || !Array.isArray(leadsResponse.data.data)) {
-          console.log(`No leads found for form ${form.id}`);
-          continue;
-        }
+      // 3. Paginate through all leads
+      while (nextPageUrl) {
+        const leadsRes = await axios.get(nextPageUrl);
+        
+        if (!leadsRes.data.data?.length) break;
 
-        // Process each lead
-        for (const lead of leadsResponse.data.data) {
+        // 4. Insert leads into DB
+        for (const lead of leadsRes.data.data) {
           const fields = {};
-          lead.field_data.forEach(f => {
-            fields[f.name] = f.values[0];
-          });
+          lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
 
           try {
             await db.promise().query(
-              "INSERT INTO leads (name, email, phone, company, designation, city) VALUES (?, ?, ?, ?, ?, ?)",
+              `INSERT INTO leads (name, email, phone, company, designation, city, created_time) 
+               VALUES (?, ?, ?, ?, ?, ?, ?) 
+               ON DUPLICATE KEY UPDATE updated_at = NOW()`,
               [
-                fields.full_name || '',
-                fields.email || '',
-                fields.phone_number || '',
-                fields.company_name || '',
-                fields.job_title || '',
-                fields.city || ''
+                fields.full_name || null,
+                fields.email || null,
+                fields.phone_number || null,
+                fields.company_name || null,
+                fields.job_title || null,
+                fields.city || null,
+                new Date(lead.created_time).toISOString().slice(0, 19).replace('T', ' ')
               ]
             );
-            console.log("Inserted lead:", fields.full_name || fields.email);
-          } catch (dbError) {
-            console.error("Database insert error:", dbError.message);
+            leadCount++;
+          } catch (err) {
+            console.error("DB Error:", err.message);
           }
         }
-      } catch (leadError) {
-        console.error(`Error fetching leads for form ${form.id}:`, leadError.message);
+
+        console.log(`Form ${form.id}: Inserted ${leadCount} leads so far`);
+        nextPageUrl = leadsRes.data.paging?.next || null;
+        
+        // Avoid rate limits
+        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 500));
       }
+      console.log(`Total inserted for form ${form.id}: ${leadCount}`);
     }
-  } catch (e) {
-    console.error("Failed to fetch lead forms:", e.response?.data || e.message);
+  } catch (error) {
+    console.error("Fetch Error:", error.response?.data || error.message);
   }
 }
-fetchLeads();
+fetchAllLeads()
 
 
 app.post("/update-user-lead-details", (req, res) => {
