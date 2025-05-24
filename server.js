@@ -64,40 +64,39 @@ app.get("/leads/assigned/:userId", (req, res) => {
 
 async function fetchLeads() {
   try {
-    // First get the lead forms for the page
-    const formsResponse = await axios.get(
+    // 1. First get all lead forms for the page
+    const formsRes = await axios.get(
       `https://graph.facebook.com/v19.0/${formId}/leadgen_forms?access_token=${accessToken}`
     );
 
-    // Check if forms exist
-    if (!formsResponse.data.data || !Array.isArray(formsResponse.data.data)) {
-      console.log("No lead forms found for this page");
+    if (!formsRes.data.data || formsRes.data.data.length === 0) {
+      console.log("No lead forms found");
       return;
     }
 
-    // Process each form's leads
-    for (const form of formsResponse.data.data) {
-      try {
-        const leadsResponse = await axios.get(
-          `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`
-        );
+    // 2. Process each form
+    for (const form of formsRes.data.data) {
+      let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
+      let leadCount = 0;
 
-        // Check if leads exist
-        if (!leadsResponse.data.data || !Array.isArray(leadsResponse.data.data)) {
-          console.log(`No leads found for form ${form.id}`);
-          continue;
+      // 3. Pagination: Keep fetching while there's a "next" page
+      while (nextPageUrl) {
+        const leadsRes = await axios.get(nextPageUrl);
+        
+        if (!leadsRes.data.data || leadsRes.data.data.length === 0) {
+          console.log(`No leads in current page for form ${form.id}`);
+          break;
         }
 
-        // Process each lead
-        for (const lead of leadsResponse.data.data) {
+        // 4. Process each lead in current page
+        for (const lead of leadsRes.data.data) {
           const fields = {};
-          lead.field_data.forEach(f => {
-            fields[f.name] = f.values[0];
-          });
+          lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
 
           try {
             await db.promise().query(
-              "INSERT INTO leads (name, email, phone, company, designation, city) VALUES (?, ?, ?, ?, ?, ?)",
+              `INSERT INTO leads (name, email, phone, company, designation, city) 
+               VALUES (?, ?, ?, ?, ?, ?)`,
               [
                 fields.full_name || '',
                 fields.email || '',
@@ -107,21 +106,27 @@ async function fetchLeads() {
                 fields.city || ''
               ]
             );
-            console.log("Inserted lead:", fields.full_name || fields.email);
+            leadCount++;
+            console.log(`Inserted lead ${leadCount}: ${fields.email || fields.phone_number}`);
           } catch (dbError) {
-            console.error("Database insert error:", dbError.message);
+            if (dbError.code === 'ER_DUP_ENTRY') {
+              console.log(`Skipped duplicate: ${fields.email || fields.phone_number}`);
+            } else {
+              console.error("DB Error:", dbError.message);
+            }
           }
         }
-      } catch (leadError) {
-        console.error(`Error fetching leads for form ${form.id}:`, leadError.message);
+
+        // 5. Check for next page
+        nextPageUrl = leadsRes.data.paging?.next || null;
       }
+
+      console.log(`Total inserted for form ${form.id}: ${leadCount}`);
     }
-  } catch (e) {
-    console.error("Failed to fetch lead forms:", e.response?.data || e.message);
+  } catch (error) {
+    console.error("API Error:", error.response?.data || error.message);
   }
 }
-
-fetchLeads();
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
