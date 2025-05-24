@@ -10,7 +10,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Replace these with your real values
-const accessToken = "EAAThL2lXUEUBOZCbLTj02ejKtZCdU0GyLFqAFOKWQZAV9b340tblppul7Xe3pBt3N3lbJ3MQC1EESM0ERQ4OXU0uFtlMh9wBbm9MqGKyqTiLChduHuT94dg4FogM1RHmo3DOS7k5hbLOf8dU7nzlRwrz2V2OM9Xlgr0TiAH7CFSn3UsvQWutc58TuLF";
+const accessToken =
+  "EAAThL2lXUEUBOzYjj9umh5H83JQjuKCW8yB454oNIzoZBLvW7IBcb8ddGZBN0gaZB2HHk12N79Y9PPJBvsb9weR1GUUn8J01wg4032lABTQnS3o3CfiAAeI0sp7RYscCLRz3lkecA1X891DNQ4oaJyWYETu0xxNnPMtO1Ie22fKmC47qHQcZA8NMCt3Mo6P1SeqX";
 const formId = "707028009370887";
 
 const db = mysql.createConnection({
@@ -63,12 +64,19 @@ app.get("/leads/assigned/:userId", (req, res) => {
 
 async function fetchLeads() {
   try {
-    const res = await axios.get(`https://graph.facebook.com/v19.0/${formId}/leads?access_token=${accessToken}`);
+    const res = await axios.get(
+      `https://graph.facebook.com/v19.0/${formId}/leads?access_token=${accessToken}`
+    );
     const leads = res.data.data;
 
     leads.forEach((lead) => {
       const fields = lead.field_data;
-      let name = "", email = "", phone = "",company,designation,city;
+      let name = "",
+        email = "",
+        phone = "",
+        company,
+        designation,
+        city;
 
       fields.forEach((f) => {
         if (f.name === "full_name") name = f.values[0];
@@ -94,7 +102,6 @@ async function fetchLeads() {
 }
 
 fetchLeads();
-
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
