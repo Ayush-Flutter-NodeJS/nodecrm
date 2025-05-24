@@ -64,40 +64,60 @@ app.get("/leads/assigned/:userId", (req, res) => {
 
 async function fetchLeads() {
   try {
-    const res = await axios.get(
+    // First get the lead forms for the page
+    const formsResponse = await axios.get(
       `https://graph.facebook.com/v19.0/${formId}/leadgen_forms?access_token=${accessToken}`
     );
-    const leads = res.data.data;
 
-    leads.forEach((lead) => {
-      const fields = lead.field_data;
-      let name = "",
-        email = "",
-        phone = "",
-        company,
-        designation,
-        city;
+    // Check if forms exist
+    if (!formsResponse.data.data || !Array.isArray(formsResponse.data.data)) {
+      console.log("No lead forms found for this page");
+      return;
+    }
 
-      fields.forEach((f) => {
-        if (f.name === "full_name") name = f.values[0];
-        if (f.name === "email") email = f.values[0];
-        if (f.name === "phone_number") phone = f.values[0];
-        if (f.name === "company_name") company = f.values[0];
-        if (f.name === "job_title") designation = f.values[0];
-        if (f.name === "city") city = f.values[0];
-      });
+    // Process each form's leads
+    for (const form of formsResponse.data.data) {
+      try {
+        const leadsResponse = await axios.get(
+          `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`
+        );
 
-      db.query(
-        "INSERT INTO leads (name, email, phone,company,designation,city) VALUES (?, ?, ?,?,?,?)",
-        [name, email, phone],
-        (err) => {
-          if (err) console.error("Insert error:", err);
-          else console.log("Inserted:", name);
+        // Check if leads exist
+        if (!leadsResponse.data.data || !Array.isArray(leadsResponse.data.data)) {
+          console.log(`No leads found for form ${form.id}`);
+          continue;
         }
-      );
-    });
+
+        // Process each lead
+        for (const lead of leadsResponse.data.data) {
+          const fields = {};
+          lead.field_data.forEach(f => {
+            fields[f.name] = f.values[0];
+          });
+
+          try {
+            await db.promise().query(
+              "INSERT INTO leads (name, email, phone, company, designation, city) VALUES (?, ?, ?, ?, ?, ?)",
+              [
+                fields.full_name || '',
+                fields.email || '',
+                fields.phone_number || '',
+                fields.company_name || '',
+                fields.job_title || '',
+                fields.city || ''
+              ]
+            );
+            console.log("Inserted lead:", fields.full_name || fields.email);
+          } catch (dbError) {
+            console.error("Database insert error:", dbError.message);
+          }
+        }
+      } catch (leadError) {
+        console.error(`Error fetching leads for form ${form.id}:`, leadError.message);
+      }
+    }
   } catch (e) {
-    console.error("Failed to fetch leads:", e.message);
+    console.error("Failed to fetch lead forms:", e.response?.data || e.message);
   }
 }
 
