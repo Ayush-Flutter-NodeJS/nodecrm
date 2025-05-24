@@ -65,7 +65,7 @@ app.get("/leads/assigned/:userId", (req, res) => {
 async function fetchLeads() {
   try {
     const res = await axios.get(
-      `https://graph.facebook.com/v19.0/${formId}/leads?access_token=${accessToken}`
+      `https://graph.facebook.com/v19.0/${formId}/leadgen_forms?access_token=${accessToken}`
     );
     const leads = res.data.data;
 
