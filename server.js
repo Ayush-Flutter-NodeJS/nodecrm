@@ -1,12 +1,17 @@
 const express = require("express");
 const cors = require("cors");
-// const mysql = require("mysql");
+const axios = require("axios");
+
 const bodyParser = require("body-parser");
 const mysql = require("mysql2");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+
+// Replace these with your real values
+const accessToken = "EAAThL2lXUEUBO7sLUjGVyD42cxDZBzTHrnfecmeZCHQyW6atDeoKUxp4RrUuqhlhwN6SU2T03KRYIPU4WtSHx3nAZAItHmuySTZC9SOiyjGt4dfrZCS20By3wRD46ZAg7ZCJw24uKBZAl64wrWIjLetVeZCxm5K0M5NGDXsEMZBHO9LtFTbj8e5wMX8kDe2m6ZB";
+const formId = "707028009370887";
 
 const db = mysql.createConnection({
   host: "195.35.47.198",
@@ -55,6 +60,41 @@ app.get("/leads/assigned/:userId", (req, res) => {
     }
   );
 });
+
+async function fetchLeads() {
+  try {
+    const res = await axios.get(`https://graph.facebook.com/v19.0/${formId}/leads?access_token=${accessToken}`);
+    const leads = res.data.data;
+
+    leads.forEach((lead) => {
+      const fields = lead.field_data;
+      let name = "", email = "", phone = "",company,designation,city;
+
+      fields.forEach((f) => {
+        if (f.name === "full_name") name = f.values[0];
+        if (f.name === "email") email = f.values[0];
+        if (f.name === "phone_number") phone = f.values[0];
+        if (f.name === "company_name") company = f.values[0];
+        if (f.name === "job_title") designation = f.values[0];
+        if (f.name === "city") city = f.values[0];
+      });
+
+      db.query(
+        "INSERT INTO leads (name, email, phone,company,designation,city) VALUES (?, ?, ?,?,?,?)",
+        [name, email, phone],
+        (err) => {
+          if (err) console.error("Insert error:", err);
+          else console.log("Inserted:", name);
+        }
+      );
+    });
+  } catch (e) {
+    console.error("Failed to fetch leads:", e.message);
+  }
+}
+
+fetchLeads();
+
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
@@ -430,53 +470,49 @@ app.get("/get-users-by-status", (req, res) => {
   });
 });
 
-
-
 // GET user name by email
 app.get("/get-user-by-email", async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Email parameter is required" 
+      return res.status(400).json({
+        success: false,
+        message: "Email parameter is required",
       });
     }
 
     const sql = "SELECT name FROM users WHERE email = ?";
-    
+
     db.query(sql, [email], (err, result) => {
       if (err) {
         console.error("Database error:", err);
-        return res.status(500).json({ 
-          success: false, 
-          message: "Database error" 
+        return res.status(500).json({
+          success: false,
+          message: "Database error",
         });
       }
-      
+
       if (result.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: "User not found" 
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
         });
       }
-      
+
       res.json({
         success: true,
-        name: result[0].name
+        name: result[0].name,
       });
     });
-
   } catch (error) {
     console.error("Server error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error" 
+    res.status(500).json({
+      success: false,
+      message: "Server error",
     });
   }
 });
-
 
 // Assign multiple leads to a user (Salesperson)
 app.post("/assign-leads", (req, res) => {
@@ -488,11 +524,9 @@ app.post("/assign-leads", (req, res) => {
     leadIds.length === 0 ||
     typeof userId !== "number"
   ) {
-    return res
-      .status(400)
-      .json({
-        error: "Invalid request. Please provide leadIds array and userId.",
-      });
+    return res.status(400).json({
+      error: "Invalid request. Please provide leadIds array and userId.",
+    });
   }
 
   const istNow = new Date().toLocaleString("en-US", {
