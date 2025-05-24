@@ -10,8 +10,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Replace these with your real values
-const accessToken =
-  "EAAThL2lXUEUBOzYjj9umh5H83JQjuKCW8yB454oNIzoZBLvW7IBcb8ddGZBN0gaZB2HHk12N79Y9PPJBvsb9weR1GUUn8J01wg4032lABTQnS3o3CfiAAeI0sp7RYscCLRz3lkecA1X891DNQ4oaJyWYETu0xxNnPMtO1Ie22fKmC47qHQcZA8NMCt3Mo6P1SeqX";
+const accessToken = "EAAThL2lXUEUBOzYjj9umh5H83JQjuKCW8yB454oNIzoZBLvW7IBcb8ddGZBN0gaZB2HHk12N79Y9PPJBvsb9weR1GUUn8J01wg4032lABTQnS3o3CfiAAeI0sp7RYscCLRz3lkecA1X891DNQ4oaJyWYETu0xxNnPMtO1Ie22fKmC47qHQcZA8NMCt3Mo6P1SeqX";
 const formId = "707028009370887";
 
 const db = mysql.createConnection({
@@ -64,44 +63,70 @@ app.get("/leads/assigned/:userId", (req, res) => {
 
 async function fetchLeads() {
   try {
-    const res = await axios.get(
-      `https://graph.facebook.com/v19.0/${formId}?access_token=${accessToken}`
+    // 1. First get all lead forms for the page
+    const formsRes = await axios.get(
+      `https://graph.facebook.com/v19.0/${formId}/leadgen_forms?access_token=${accessToken}`
     );
-    const leads = res.data.data;
 
-    leads.forEach((lead) => {
-      const fields = lead.field_data;
-      let name = "",
-        email = "",
-        phone = "",
-        company,
-        designation,
-        city;
+    if (!formsRes.data.data || formsRes.data.data.length === 0) {
+      console.log("No lead forms found");
+      return;
+    }
 
-      fields.forEach((f) => {
-        if (f.name === "full_name") name = f.values[0];
-        if (f.name === "email") email = f.values[0];
-        if (f.name === "phone_number") phone = f.values[0];
-        if (f.name === "company_name") company = f.values[0];
-        if (f.name === "job_title") designation = f.values[0];
-        if (f.name === "city") city = f.values[0];
-      });
+    // 2. Process each form
+    for (const form of formsRes.data.data) {
+      let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
+      let leadCount = 0;
 
-      db.query(
-        "INSERT INTO leads (name, email, phone,company,designation,city) VALUES (?, ?, ?,?,?,?)",
-        [name, email, phone],
-        (err) => {
-          if (err) console.error("Insert error:", err);
-          else console.log("Inserted:", name);
+      // 3. Pagination: Keep fetching while there's a "next" page
+      while (nextPageUrl) {
+        const leadsRes = await axios.get(nextPageUrl);
+        
+        if (!leadsRes.data.data || leadsRes.data.data.length === 0) {
+          console.log(`No leads in current page for form ${form.id}`);
+          break;
         }
-      );
-    });
-  } catch (e) {
-    console.error("Failed to fetch leads:", e.message);
+
+        // 4. Process each lead in current page
+        for (const lead of leadsRes.data.data) {
+          const fields = {};
+          lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
+
+          try {
+            await db.promise().query(
+              `INSERT INTO leads (name, email, phone, company, designation, city) 
+               VALUES (?, ?, ?, ?, ?, ?)`,
+              [
+                fields.full_name || '',
+                fields.email || '',
+                fields.phone_number || '',
+                fields.company_name || '',
+                fields.job_title || '',
+                fields.city || ''
+              ]
+            );
+            leadCount++;
+            console.log(`Inserted lead ${leadCount}: ${fields.email || fields.phone_number}`);
+          } catch (dbError) {
+            if (dbError.code === 'ER_DUP_ENTRY') {
+              console.log(`Skipped duplicate: ${fields.email || fields.phone_number}`);
+            } else {
+              console.error("DB Error:", dbError.message);
+            }
+          }
+        }
+
+        // 5. Check for next page
+        nextPageUrl = leadsRes.data.paging?.next || null;
+      }
+
+      console.log(`Total inserted for form ${form.id}: ${leadCount}`);
+    }
+  } catch (error) {
+    console.error("API Error:", error.response?.data || error.message);
   }
 }
 
-fetchLeads();
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
