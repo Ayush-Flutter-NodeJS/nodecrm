@@ -10,7 +10,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Replace these with your real values
-const accessToken = "EAAThL2lXUEUBOzYjj9umh5H83JQjuKCW8yB454oNIzoZBLvW7IBcb8ddGZBN0gaZB2HHk12N79Y9PPJBvsb9weR1GUUn8J01wg4032lABTQnS3o3CfiAAeI0sp7RYscCLRz3lkecA1X891DNQ4oaJyWYETu0xxNnPMtO1Ie22fKmC47qHQcZA8NMCt3Mo6P1SeqX";
+const accessToken =
+  "EAAThL2lXUEUBOzYjj9umh5H83JQjuKCW8yB454oNIzoZBLvW7IBcb8ddGZBN0gaZB2HHk12N79Y9PPJBvsb9weR1GUUn8J01wg4032lABTQnS3o3CfiAAeI0sp7RYscCLRz3lkecA1X891DNQ4oaJyWYETu0xxNnPMtO1Ie22fKmC47qHQcZA8NMCt3Mo6P1SeqX";
 const formId = "707028009370887";
 
 const db = mysql.createConnection({
@@ -81,13 +82,13 @@ async function fetchAllLeads() {
       // 3. Paginate through all leads
       while (nextPageUrl) {
         const leadsRes = await axios.get(nextPageUrl);
-        
+
         if (!leadsRes.data.data?.length) break;
 
         // 4. Insert leads into DB
         for (const lead of leadsRes.data.data) {
           const fields = {};
-          lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
+          lead.field_data.forEach((f) => (fields[f.name] = f.values[0]));
 
           try {
             await db.promise().query(
@@ -101,7 +102,10 @@ async function fetchAllLeads() {
                 fields.company_name || null,
                 fields.job_title || null,
                 fields.city || null,
-                new Date(lead.created_time).toISOString().slice(0, 19).replace('T', ' ')
+                new Date(lead.created_time)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace("T", " "),
               ]
             );
             leadCount++;
@@ -112,9 +116,10 @@ async function fetchAllLeads() {
 
         console.log(`Form ${form.id}: Inserted ${leadCount} leads so far`);
         nextPageUrl = leadsRes.data.paging?.next || null;
-        
+
         // Avoid rate limits
-        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 1000));
+        if (nextPageUrl)
+          await new Promise((resolve) => setTimeout(resolve, 500));
       }
       console.log(`Total inserted for form ${form.id}: ${leadCount}`);
     }
@@ -122,8 +127,7 @@ async function fetchAllLeads() {
     console.error("Fetch Error:", error.response?.data || error.message);
   }
 }
-fetchAllLeads()
-
+fetchAllLeads();
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
