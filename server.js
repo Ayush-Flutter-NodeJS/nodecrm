@@ -114,7 +114,7 @@ async function fetchAllLeads() {
         nextPageUrl = leadsRes.data.paging?.next || null;
         
         // Avoid rate limits
-        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 500));
+        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 1000));
       }
       console.log(`Total inserted for form ${form.id}: ${leadCount}`);
     }
