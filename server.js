@@ -63,7 +63,7 @@ app.get("/leads/assigned/:userId", (req, res) => {
 
 async function fetchAllLeads() {
   try {
-    console.log("Starting lead fetch process...");
+    // 1. Get all lead forms
     const formsRes = await axios.get(
       `https://graph.facebook.com/v19.0/${pageId}/leadgen_forms?access_token=${accessToken}`
     );
@@ -73,33 +73,24 @@ async function fetchAllLeads() {
       return;
     }
 
-    console.log(`Found ${formsRes.data.data.length} forms`);
-
+    // 2. Process each form
     for (const form of formsRes.data.data) {
-      console.log(`\nProcessing form ${form.id}...`);
       let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
       let leadCount = 0;
-      let pageCount = 0;
 
+      // 3. Paginate through all leads
       while (nextPageUrl) {
-        pageCount++;
-        console.log(`Fetching page ${pageCount}...`);
-        
         const leadsRes = await axios.get(nextPageUrl);
         
-        if (!leadsRes.data.data?.length) {
-          console.log("No leads in this page");
-          break;
-        }
+        if (!leadsRes.data.data?.length) break;
 
-        console.log(`Found ${leadsRes.data.data.length} leads in this page`);
-        
+        // 4. Insert leads into DB
         for (const lead of leadsRes.data.data) {
           const fields = {};
           lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
 
           try {
-            const [result] = await db.promise().query(
+            await db.promise().query(
               `INSERT INTO leads (name, email, phone, company, designation, city, created_time) 
                VALUES (?, ?, ?, ?, ?, ?, ?) 
                ON DUPLICATE KEY UPDATE updated_at = NOW()`,
@@ -113,37 +104,22 @@ async function fetchAllLeads() {
                 new Date(lead.created_time).toISOString().slice(0, 19).replace('T', ' ')
               ]
             );
-            
-            if (result.affectedRows > 0) {
-              leadCount++;
-              if (result.affectedRows === 1) {
-                console.log(`Inserted new lead: ${fields.email || fields.phone_number}`);
-              } else {
-                console.log(`Updated existing lead: ${fields.email || fields.phone_number}`);
-              }
-            }
+            leadCount++;
           } catch (err) {
             console.error("DB Error:", err.message);
-            console.error("Problematic lead data:", JSON.stringify(lead, null, 2));
           }
         }
 
-        console.log(`Form ${form.id}: Page ${pageCount} processed. Total so far: ${leadCount}`);
+        console.log(`Form ${form.id}: Inserted ${leadCount} leads so far`);
         nextPageUrl = leadsRes.data.paging?.next || null;
         
-        if (nextPageUrl) {
-          console.log(`Waiting before next page...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Avoid rate limits
+        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 500));
       }
-      console.log(`Finished form ${form.id}. Total inserted/updated: ${leadCount}`);
+      console.log(`Total inserted for form ${form.id}: ${leadCount}`);
     }
   } catch (error) {
     console.error("Fetch Error:", error.response?.data || error.message);
-    if (error.response) {
-      console.error("Response status:", error.response.status);
-      console.error("Response headers:", error.response.headers);
-    }
   }
 }
 fetchAllLeads()
