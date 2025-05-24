@@ -62,67 +62,46 @@ app.get("/leads/assigned/:userId", (req, res) => {
   );
 });
 
-async function fetchAllLeads() {
+async function fetchLeads() {
   try {
-    // 1. Get all lead forms
-    const formsRes = await axios.get(
-      `https://graph.facebook.com/v19.0/${pageId}/leadgen_forms?access_token=${accessToken}`
+    const res = await axios.get(
+      `https://graph.facebook.com/v19.0/${formId}?access_token=${accessToken}`
     );
+    const leads = res.data.data;
 
-    if (!formsRes.data.data?.length) {
-      console.log("No lead forms found");
-      return;
-    }
+    leads.forEach((lead) => {
+      const fields = lead.field_data;
+      let name = "",
+        email = "",
+        phone = "",
+        company,
+        designation,
+        city;
 
-    // 2. Process each form
-    for (const form of formsRes.data.data) {
-      let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
-      let leadCount = 0;
+      fields.forEach((f) => {
+        if (f.name === "full_name") name = f.values[0];
+        if (f.name === "email") email = f.values[0];
+        if (f.name === "phone_number") phone = f.values[0];
+        if (f.name === "company_name") company = f.values[0];
+        if (f.name === "job_title") designation = f.values[0];
+        if (f.name === "city") city = f.values[0];
+      });
 
-      // 3. Paginate through all leads
-      while (nextPageUrl) {
-        const leadsRes = await axios.get(nextPageUrl);
-        
-        if (!leadsRes.data.data?.length) break;
-
-        // 4. Insert leads into DB
-        for (const lead of leadsRes.data.data) {
-          const fields = {};
-          lead.field_data.forEach(f => (fields[f.name] = f.values[0]));
-
-          try {
-            await db.promise().query(
-              `INSERT INTO leads (name, email, phone, company, designation, city, created_time) 
-               VALUES (?, ?, ?, ?, ?, ?, ?) 
-               ON DUPLICATE KEY UPDATE updated_at= NOW()`,
-              [
-                fields.full_name || null,
-                fields.email || null,
-                fields.phone_number || null,
-                fields.company_name || null,
-                fields.job_title || null,
-                fields.city || null,
-                new Date(lead.created_time).toISOString().slice(0, 19).replace('T', ' ')
-              ]
-            );
-            leadCount++;
-          } catch (err) {
-            console.error("DB Error:", err.message);
-          }
+      db.query(
+        "INSERT INTO leads (name, email, phone,company,designation,city) VALUES (?, ?, ?,?,?,?)",
+        [name, email, phone],
+        (err) => {
+          if (err) console.error("Insert error:", err);
+          else console.log("Inserted:", name);
         }
-
-        console.log(`Form ${form.id}: Inserted ${leadCount} leads so far`);
-        nextPageUrl = leadsRes.data.paging?.next || null;
-        
-        // Avoid rate limits
-        if (nextPageUrl) await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      console.log(`Total inserted for form ${form.id}: ${leadCount}`);
-    }
-  } catch (error) {
-    console.error("Fetch Error:", error.response?.data || error.message);
+      );
+    });
+  } catch (e) {
+    console.error("Failed to fetch leads:", e.message);
   }
 }
+
+fetchLeads();
 
 app.post("/update-user-lead-details", (req, res) => {
   const {
