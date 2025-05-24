@@ -94,7 +94,7 @@ async function fetchAllLeads() {
             await db.promise().query(
               `INSERT INTO leads (name, email, phone, company, designation, city, created_time) 
                VALUES (?, ?, ?, ?, ?, ?, ?) 
-               ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+               ON DUPLICATE KEY UPDATE updated_at= NOW()`,
               [
                 fields.full_name || null,
                 fields.email || null,
