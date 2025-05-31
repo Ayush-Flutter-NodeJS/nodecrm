@@ -79,13 +79,11 @@ async function fetchAllLeads() {
       let nextPageUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?access_token=${accessToken}`;
       let leadCount = 0;
 
-      // 3. Paginate through all leads
       while (nextPageUrl) {
         const leadsRes = await axios.get(nextPageUrl);
 
         if (!leadsRes.data.data?.length) break;
 
-        // 4. Insert leads into DB
         for (const lead of leadsRes.data.data) {
           const fields = {};
           lead.field_data.forEach((f) => (fields[f.name] = f.values[0]));
@@ -192,7 +190,7 @@ app.post("/update-user-lead-details", (req, res) => {
       return res.status(500).send("Error updating user lead details");
     }
 
-    if (result.affectedRows === 0) {
+    if (result.affectedRows == 0) {
       return res.status(404).send("No matching user found to update");
     }
 
