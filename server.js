@@ -163,7 +163,7 @@ app.post("/update-user-lead-details", (req, res) => {
       updated_company = ?, 
       updated_email = ?, 
       updated_phone = ? 
-    WHERE id = ?
+    WHERE name = ?
   `;
 
   const values = [
