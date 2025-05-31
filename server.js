@@ -593,37 +593,28 @@ app.post("/assign-leads", (req, res) => {
   });
 });
 
-app.get("/assigned-leads/:userId", (req, res) => {
-  const userId = parseInt(req.params.userId);
+// Fetch leads assigned to a salesperson by name
+app.get("/assigned-leads-by-name/:salespersonName", (req, res) => {
+  const { salespersonName } = req.params;
 
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: "Invalid user ID" });
-  }
+  // Query to get leads where assigned_to matches the salesperson's name
+  const sql = `
+    SELECT l.* 
+    FROM leads l
+    JOIN users u ON l.assigned_to = u.id
+    WHERE u.name = ?
+  `;
 
-  const sql = "SELECT * FROM leads WHERE assigned_to = ?";
-  db.query(sql, [userId], (err, results) => {
+  db.query(sql, [salespersonName], (err, results) => {
     if (err) {
       console.error("Database error:", err);
-      return res.status(500).json({ error: "Database error" });
+      return res.status(500).json({ error: "Failed to fetch leads" });
     }
     res.json(results);
   });
 });
 
-// app.post("/assign-leads", (req, res) => {
-//   const { leadIds, userId } = req.body;
-//   const now = new Date();
 
-//   if (!Array.isArray(leadIds) || typeof userId !== "number") {
-//     return res.status(400).send("Invalid request. Please check the input.");
-//   }
-
-//   const sql = "UPDATE leads SET assigned_to = ?, assigned_at = ? WHERE id IN (?)";
-//   db.query(sql, [userId, now, leadIds], (err, result) => {
-//     if (err) return res.status(500).send("Failed to assign leads");
-//     res.send("Leads assigned successfully");
-//   });
-// });
 
 // Get all salespersons (users with role 'sales')
 app.get("/salespersons", (req, res) => {
